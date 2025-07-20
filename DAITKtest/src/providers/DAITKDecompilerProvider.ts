@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { AIService } from '../services/AIService.js';
-import { CompilerService } from '../services/CompilerService.js';
-import { VerificationService } from '../services/VerificationService.js';
-import { Logger } from '../utils/Logger.js';
+import { AIService } from '../services/AIService';
+import { CompilerService } from '../services/CompilerService';
+import { VerificationService } from '../services/VerificationService';
+import { Logger } from '../utils/Logger';
+import { DecompilationResult } from './DecompilationResultsProvider';
 
 export class DAITKDecompilerProvider {
   private context: vscode.ExtensionContext;
@@ -21,17 +22,17 @@ export class DAITKDecompilerProvider {
     this.verificationService = new VerificationService();
   }
 
-  async decompileCurrentFunction(): Promise<void> {
+  async decompileCurrentFunction(): Promise<DecompilationResult | null> {
     const editor = vscode.window.activeTextEditor;
     if (!editor) {
       vscode.window.showWarningMessage('No active editor found');
-      return;
+      return null;
     }
 
     const document = editor.document;
     if (document.languageId !== 'assembly') {
       vscode.window.showWarningMessage('Current file is not an assembly file');
-      return;
+      return null;
     }
 
     try {
@@ -47,11 +48,14 @@ export class DAITKDecompilerProvider {
         vscode.window.showWarningMessage(
           'No function found at cursor position'
         );
-        return;
+        return null;
       }
 
+      // Extract function name
+      const functionName = this.extractFunctionName(assemblyCode);
+
       // Show progress
-      await vscode.window.withProgress(
+      const result = await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
           title: 'Decompiling function...',
@@ -83,15 +87,32 @@ export class DAITKDecompilerProvider {
               compilationResult
             );
 
-          // Show results
-          await this.showDecompilationResults(cCode, verificationResult);
+          // Create result object
+          const decompilationResult: DecompilationResult = {
+            id: `decomp_${Date.now()}`,
+            functionName: functionName,
+            assemblyFile: document.fileName,
+            cCode: cCode,
+            status: verificationResult.success ? 'success' : 'warning',
+            matchPercentage: verificationResult.matchPercentage,
+            timestamp: new Date(),
+            differences: verificationResult.differences,
+          };
+
+          return decompilationResult;
         }
       );
+
+      // Show results
+      await this.showDecompilationResults(result);
+
+      return result;
     } catch (error) {
       this.logger.error('Decompilation failed:', error);
       vscode.window.showErrorMessage(
         `Decompilation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+      return null;
     }
   }
 
@@ -166,7 +187,8 @@ export class DAITKDecompilerProvider {
       const lineText = lines[i].trim();
       if (
         lineText.match(/^[a-zA-Z_][a-zA-Z0-9_]*:/) ||
-        lineText.includes('function')
+        lineText.includes('function') ||
+        lineText.includes('.fn')
       ) {
         startLine = i;
         break;
@@ -178,7 +200,8 @@ export class DAITKDecompilerProvider {
       const lineText = lines[i].trim();
       if (
         lineText.match(/^[a-zA-Z_][a-zA-Z0-9_]*:/) ||
-        lineText.includes('function')
+        lineText.includes('function') ||
+        lineText.includes('.fn')
       ) {
         endLine = i - 1;
         break;
@@ -188,22 +211,40 @@ export class DAITKDecompilerProvider {
     return lines.slice(startLine, endLine + 1).join('\n');
   }
 
+  private extractFunctionName(assemblyCode: string): string {
+    // Extract function name from assembly
+    const lines = assemblyCode.split('\n');
+    for (const line of lines) {
+      // Look for .fn directive
+      const fnMatch = line.match(/\.fn\s+(\w+)/);
+      if (fnMatch) {
+        return fnMatch[1];
+      }
+
+      // Look for function labels
+      const labelMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*):/);
+      if (labelMatch) {
+        return labelMatch[1];
+      }
+    }
+    return 'decompiled_function';
+  }
+
   private async showDecompilationResults(
-    cCode: string,
-    verificationResult: any
+    result: DecompilationResult
   ): Promise<void> {
     // Create a new document with the generated C code
     const document = await vscode.workspace.openTextDocument({
-      content: cCode,
+      content: result.cCode,
       language: 'c',
     });
 
     await vscode.window.showTextDocument(document);
 
     // Show verification status
-    if (verificationResult.success) {
+    if (result.status === 'success') {
       vscode.window.showInformationMessage(
-        'Decompilation completed successfully!'
+        `Decompilation completed successfully! (${result.matchPercentage}% match)`
       );
     } else {
       vscode.window.showWarningMessage(

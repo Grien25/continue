@@ -4,9 +4,6 @@
   "description": "AI-powered assembly to C decompiler with verification",
   "version": "1.0.0",
   "publisher": "daitk",
-  "engines": {
-    "vscode": "^1.85.0"
-  },
   "categories": [
     "Other"
   ],
@@ -14,7 +11,8 @@
     "onLanguage:assembly",
     "onCommand:daitk.decompileFunction",
     "onCommand:daitk.verifyDecompilation",
-    "onCommand:daitk.openAssemblyExplorer"
+    "onCommand:daitk.openAssemblyExplorer",
+    "onView:daitk.decompilerView"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -33,8 +31,36 @@
         "command": "daitk.openAssemblyExplorer",
         "title": "DAITK: Open Assembly Explorer",
         "category": "DAITK"
+      },
+      {
+        "command": "daitk.test",
+        "title": "DAITK: Test Extension",
+        "category": "DAITK"
+      },
+      {
+        "command": "daitk.showCCode",
+        "title": "DAITK: Show C Code",
+        "category": "DAITK"
+      },
+      {
+        "command": "daitk.clearResults",
+        "title": "DAITK: Clear Results",
+        "category": "DAITK"
+      },
+      {
+        "command": "daitk.openDecompilerView",
+        "title": "DAITK: Open Decompiler",
+        "category": "DAITK"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "daitk.openDecompilerView",
+          "when": "true"
+        }
+      ]
+    },
     "views": {
       "explorer": [
         {
@@ -55,8 +81,16 @@
     "views": {
       "daitk-sidebar": [
         {
+          "id": "daitk.decompilerView",
+          "name": "DAITK Decompiler"
+        },
+        {
           "id": "daitkAssemblyExplorer",
           "name": "Assembly Functions"
+        },
+        {
+          "id": "daitkDecompilationResults",
+          "name": "Decompilation Results"
         },
         {
           "id": "daitkDecompilationStatus",
@@ -149,6 +183,7 @@
     "@anthropic-ai/sdk": "^0.9.0"
   },
   "engines": {
+    "vscode": "^1.85.0",
     "node": ">=18.0.0"
   }
 }
