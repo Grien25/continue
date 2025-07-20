@@ -7,13 +7,6 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onLanguage:assembly",
-    "onCommand:daitk.decompileFunction",
-    "onCommand:daitk.verifyDecompilation",
-    "onCommand:daitk.openAssemblyExplorer",
-    "onView:daitk.decompilerView"
-  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -58,14 +51,6 @@
         {
           "command": "daitk.openDecompilerView",
           "when": "true"
-        }
-      ]
-    },
-    "views": {
-      "explorer": [
-        {
-          "id": "daitkAssemblyExplorer",
-          "name": "Assembly Functions"
         }
       ]
     },
